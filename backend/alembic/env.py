@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
+from app import models  # noqa: F401
 from app.config import Settings
 from app.db import Base
-from app import models  # noqa: F401
 
 load_dotenv()
 

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.deps import get_current_household, get_db
@@ -54,9 +55,12 @@ def create_car(
     db.add(car)
     try:
         db.commit()
-    except Exception:
+    except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Car already exists for household")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Car already exists for household",
+        ) from None
     db.refresh(car)
     return _to_out(car)
 
@@ -70,7 +74,7 @@ def get_car(
     try:
         cid = uuid.UUID(car_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
 
     car = db.get(Car, cid)
     if not car or car.household_id != household.id:
@@ -88,7 +92,7 @@ def update_car(
     try:
         cid = uuid.UUID(car_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
 
     car = db.get(Car, cid)
     if not car or car.household_id != household.id:
@@ -119,7 +123,7 @@ def archive_car(
     try:
         cid = uuid.UUID(car_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
 
     car = db.get(Car, cid)
     if not car or car.household_id != household.id:
@@ -140,7 +144,7 @@ def unarchive_car(
     try:
         cid = uuid.UUID(car_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
 
     car = db.get(Car, cid)
     if not car or car.household_id != household.id:

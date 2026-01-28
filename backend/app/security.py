@@ -1,25 +1,25 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
+import bcrypt
 from jose import jwt
-from passlib.context import CryptContext
 
 from app.config import Settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # Store as a string in the DB (bcrypt returns bytes)
+    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
+    return hashed.decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def create_access_token(*, settings: Settings, subject: str, minutes: int) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     exp = now + timedelta(minutes=minutes)
     payload = {"sub": subject, "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_alg)

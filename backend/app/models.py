@@ -18,7 +18,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
-    memberships: Mapped[list["HouseholdMember"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    memberships: Mapped[list[HouseholdMember]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class Household(Base):
@@ -28,8 +28,8 @@ class Household(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
-    members: Mapped[list["HouseholdMember"]] = relationship(back_populates="household", cascade="all, delete-orphan")
-    cars: Mapped[list["Car"]] = relationship(back_populates="household", cascade="all, delete-orphan")
+    members: Mapped[list[HouseholdMember]] = relationship(back_populates="household", cascade="all, delete-orphan")
+    cars: Mapped[list[Car]] = relationship(back_populates="household", cascade="all, delete-orphan")
 
 
 class HouseholdMember(Base):
@@ -42,8 +42,8 @@ class HouseholdMember(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="admin")  # admin|member
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
-    household: Mapped["Household"] = relationship(back_populates="members")
-    user: Mapped["User"] = relationship(back_populates="memberships")
+    household: Mapped[Household] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(back_populates="memberships")
 
 
 class Car(Base):
@@ -62,4 +62,4 @@ class Car(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
-    household: Mapped["Household"] = relationship(back_populates="cars")
+    household: Mapped[Household] = relationship(back_populates="cars")

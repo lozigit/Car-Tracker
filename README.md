@@ -9,7 +9,7 @@ Implements **Phase 1** from the spec:
 ---
 
 ## Prereqs (Windows 11)
-- Python **3.13**
+- Python **3.14**
 - Node **20+**
 - Docker Desktop (Linux containers)
 - VS Code
@@ -29,7 +29,7 @@ docker compose up -d
 ### Create venv + install
 ```powershell
 cd ..\backend
-py -3.13 -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 pip install -e ".[dev]"

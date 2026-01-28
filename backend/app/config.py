@@ -18,7 +18,7 @@ class Settings:
     cors_origins: list[str]
 
     @staticmethod
-    def from_env() -> "Settings":
+    def from_env() -> Settings:
         db = _getenv("DATABASE_URL", "postgresql+psycopg://cartrack:cartrack@localhost:5432/cartrack")
         jwt_secret = _getenv("JWT_SECRET", "change-me-in-dev")
         jwt_alg = _getenv("JWT_ALG", "HS256")
