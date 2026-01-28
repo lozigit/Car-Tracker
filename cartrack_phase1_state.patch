@@ -1,0 +1,743 @@
+From 2a834515553c614a5c6899e7fdef45cb4e3909bd Mon Sep 17 00:00:00 2001
+From: lozigit <nick@inventoryguardian.co.uk>
+Date: Wed, 28 Jan 2026 16:10:35 +0000
+Subject: [PATCH] Phase 1 Testing complete
+
+---
+ .github/workflows/ci.yml              |   2 +-
+ .vscode/settings.json                 |   5 +-
+ CARTRACK_components_overview.md       | 160 ++++++++++++++++++++
+ CARTRACK_repo_map_and_glossary.md     | 209 ++++++++++++++++++++++++++
+ README.md                             |   4 +-
+ STARTUP.md                            |  38 +++++
+ backend/alembic/env.py                |   4 +-
+ backend/alembic/versions/0001_init.py |   3 +-
+ backend/app/config.py                 |   2 +-
+ backend/app/deps.py                   |   5 +-
+ backend/app/models.py                 |  12 +-
+ backend/app/routers/cars.py           |  16 +-
+ backend/app/security.py               |  14 +-
+ backend/pyproject.toml                |   3 +-
+ backend/tests/test_health.py          |   3 +-
+ 15 files changed, 448 insertions(+), 32 deletions(-)
+ create mode 100644 CARTRACK_components_overview.md
+ create mode 100644 CARTRACK_repo_map_and_glossary.md
+ create mode 100644 STARTUP.md
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index d11682f..7f650b3 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -14,7 +14,7 @@ jobs:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-python@v5
+         with:
+-          python-version: "3.13"
++          python-version: "3.14"
+       - name: Install
+         run: |
+           python -m venv .venv
+diff --git a/.vscode/settings.json b/.vscode/settings.json
+index b5c5bda..616d27f 100644
+--- a/.vscode/settings.json
++++ b/.vscode/settings.json
+@@ -6,5 +6,6 @@
+   ],
+   "editor.formatOnSave": true,
+   "files.trimTrailingWhitespace": true,
+-  "files.insertFinalNewline": true
+-}
+\ No newline at end of file
++  "files.insertFinalNewline": true,
++  "makefile.configureOnOpen": false
++}
+diff --git a/CARTRACK_components_overview.md b/CARTRACK_components_overview.md
+new file mode 100644
+index 0000000..87e5cfa
+--- /dev/null
++++ b/CARTRACK_components_overview.md
+@@ -0,0 +1,160 @@
++# CAR TRACK — Components Overview (Phase 1)
++
++## Big picture
++
++CAR TRACK is split into **three parts** that you run together during development:
++
++- **infra**: the supporting services your app needs (database, cache)
++- **backend**: your Python API (FastAPI) that talks to the database and implements rules
++- **frontend**: the website users click around in (React) that calls the API
++
++Think of it like:
++
++**Browser UI (frontend)** → calls → **Python API (backend)** → reads/writes → **Postgres (infra)**  
++…and **Redis (infra)** is there for fast “short-term” storage later (sessions, rate limiting, background jobs, etc).
++
++---
++
++## Infra (Docker: Postgres + Redis)
++
++### Postgres (database)
++- This is where your **real data lives**: users, households, cars, later renewals, documents, etc.
++- It’s a relational database (tables, constraints, relationships).
++- In dev, Docker runs it so you don’t need to install Postgres locally.
++
++**Why it matters:**  
++When you create a car in the UI, the backend stores it in Postgres. When you reload the page tomorrow, it’s still there because Postgres persisted it.
++
++### Redis (cache / fast store)
++- A very fast in-memory key/value store.
++- In Phase 1 you might not “use” it yet, but we bring it up because it’s commonly needed soon for:
++  - rate limiting login attempts
++  - caching API lookups
++  - background job queues (e.g., reminder emails)
++  - session-ish data if you later go that way
++
++**Key point:** Redis is usually **not your source of truth**; Postgres is.
++
++### Docker Compose
++- The `docker compose up -d` command starts both services together.
++- Docker also creates a “volume” so your Postgres data survives restarts.
++
++---
++
++## Backend (Python: FastAPI + SQLAlchemy + Alembic)
++
++This is the **engine room** of the app.
++
++### FastAPI (web framework)
++- Defines your HTTP API:
++  - endpoints like `POST /api/auth/login` or `GET /api/cars`
++- Handles:
++  - routing (which function runs for which URL)
++  - request validation (via Pydantic models)
++  - JSON responses
++  - auth dependency injection (`Depends(...)`)
++
++When you run:
++
++```bash
++python -m uvicorn app.main:app --reload
++```
++
++…you’re starting a local web server on `http://127.0.0.1:8000`.
++
++### Pydantic (data validation + schemas)
++- Pydantic models describe the “shape” of data coming in and out.
++- Example: `SignupRequest` requires a valid email + password length rules.
++- If the frontend sends invalid JSON, Pydantic rejects it automatically with a clear error response.
++
++### SQLAlchemy (database layer / ORM)
++- SQLAlchemy maps Python classes to database tables.
++- Example: `Car` class ↔ `cars` table.
++- You create/update/query objects, and SQLAlchemy turns that into SQL for Postgres.
++
++**Why ORM is handy:**
++- relationships become easier later (e.g., a car has renewals, documents, etc.)
++- constraints and indexes can be expressed cleanly
++
++### Alembic (database migrations)
++- Migrations are “version control for your database schema”.
++- When you change models (add a column/table), you create a migration so every environment can update consistently.
++
++Apply migrations with:
++
++```bash
++python -m alembic upgrade head
++```
++
++### Auth approach in Phase 1 (JWT)
++- Login returns an **access token** (a JWT).
++- Frontend stores it in `localStorage`.
++- Each API call includes:
++  - `Authorization: Bearer <token>`
++- Backend verifies token on protected routes.
++
++### Ruff + Pytest
++- **Ruff**: linting (style + bug prevention) and auto-fixes for some upgrades.
++- **Pytest**: runs automated tests (Phase 1 starts small, grows over time).
++
++---
++
++## Frontend (React + TypeScript + Vite)
++
++This is the **user interface** in the browser.
++
++### React (UI framework)
++- Pages are components.
++- React handles:
++  - rendering forms and lists
++  - routing between pages (Dashboard → Car Detail)
++  - managing UI state (loading, errors, inputs)
++
++### TypeScript (typed JavaScript)
++- Adds type safety so it’s harder to make silly mistakes.
++- You’ll see types like:
++
++```ts
++type Car = { id: string; registration_number: string; ... }
++```
++
++### Vite (dev server + bundler)
++- Runs the dev server on `http://localhost:5173`
++- Hot reloads the UI when you save a file.
++
++### How frontend talks to backend
++There’s a small API helper (fetch wrapper) that:
++- adds JSON headers
++- attaches the bearer token automatically
++- throws a useful error if the API call fails
++
++---
++
++## How it all fits together (example: “Add Car”)
++
++When you click **Add Car** in the UI:
++
++1) **Frontend** sends `POST /api/cars` with JSON payload  
++2) **Backend**:
++   - checks JWT token (are you logged in?)
++   - finds your household (Phase 1 shortcut)
++   - validates payload (Pydantic)
++   - writes to Postgres (SQLAlchemy)  
++3) **Postgres** stores the row  
++4) Backend returns JSON  
++5) Frontend updates the UI
++
++---
++
++## What you’ll typically run day-to-day
++
++- **Infra**: `docker compose up -d` (rarely changes once running)
++- **Backend**: `uvicorn ... --reload` (runs while coding)
++- **Frontend**: `npm run dev` (runs while coding)
++
++And when schema changes:
++- `alembic upgrade head`
++
++Before commits / when debugging:
++- `ruff check .`
++- `pytest`
+diff --git a/CARTRACK_repo_map_and_glossary.md b/CARTRACK_repo_map_and_glossary.md
+new file mode 100644
+index 0000000..39779ce
+--- /dev/null
++++ b/CARTRACK_repo_map_and_glossary.md
+@@ -0,0 +1,209 @@
++# CAR TRACK — Repo Map + Glossary (Phase 1)
++
++## Folder map (what’s where)
++
++At repo root you typically have:
++
++```
++Car_Tracker/
++  infra/
++  backend/
++  frontend/
++  .github/
++  .vscode/
++  README.md
++```
++
++### `infra/` — “support services” (Docker)
++Typical contents:
++- `docker-compose.yml` — starts Postgres + Redis containers
++- (optional) `.env` — environment values for docker compose
++
++You run this when you want your database/cache available locally:
++```bash
++docker compose up -d
++```
++
++### `backend/` — Python API (FastAPI)
++
++Common structure:
++
++```
++backend/
++  app/
++    main.py
++    config.py
++    db.py
++    models.py
++    schemas.py
++    deps.py
++    security.py
++    routers/
++      auth.py
++      households.py
++      cars.py
++  alembic/
++    env.py
++    versions/
++      0001_init.py
++  tests/
++    test_health.py
++  pyproject.toml
++  .env.example
++  alembic.ini
++```
++
++**What each key file does:**
++- `app/main.py` — creates the FastAPI app, wires up routers, CORS, health endpoint
++- `app/config.py` — reads environment variables into a Settings object
++- `app/db.py` — SQLAlchemy base + session factory (how we talk to the DB)
++- `app/models.py` — ORM classes: `User`, `Household`, `Car` (maps to tables)
++- `app/schemas.py` — Pydantic models for request/response validation
++- `app/deps.py` — FastAPI “dependencies” like `get_db()` and `get_current_user()`
++- `app/security.py` — password hashing + JWT creation
++- `app/routers/*.py` — API endpoints grouped by feature area
++- `alembic/` — migration tooling and migration files
++- `tests/` — pytest tests
++- `pyproject.toml` — dependencies + tool config (ruff, pytest, etc.)
++- `.env.example` — environment variable template for local dev
++- `alembic.ini` — Alembic logging and config
++
++### `frontend/` — Website UI (React)
++
++Common structure:
++
++```
++frontend/
++  src/
++    main.tsx
++    lib/
++      api.ts
++      ui.tsx
++    pages/
++      Login.tsx
++      Signup.tsx
++      Household.tsx
++      Dashboard.tsx
++      CarDetail.tsx
++  package.json
++  vite.config.ts
++  tsconfig.json
++```
++
++**What each key file does:**
++- `src/main.tsx` — app entry point + routing
++- `src/lib/api.ts` — wrapper around `fetch` + token storage + API calls
++- `src/pages/*` — your screens/pages
++- `package.json` — frontend dependencies + scripts (`npm run dev`, `npm run build`)
++- `vite.config.ts` — Vite dev server config
++
++### `.github/` — CI (automated checks)
++- GitHub Actions workflow(s) for linting/testing on pushes and PRs.
++
++### `.vscode/` — editor settings (helpful defaults)
++- points VS Code at your backend venv (when configured correctly)
++- turns on format-on-save, pytest config, etc.
++
++---
++
++## How requests flow (mental model)
++
++**Frontend** runs in the browser and calls the API:
++- Browser → `http://localhost:5173` (Vite dev server)
++
++**Backend** runs as a local server:
++- API → `http://localhost:8000` (Uvicorn + FastAPI)
++
++**Infra** is Docker:
++- Postgres → `localhost:5432`
++- Redis → `localhost:6379`
++
++So when you add a car:
++1) frontend sends HTTP request to backend
++2) backend validates, authenticates, writes to Postgres
++3) backend returns JSON
++4) frontend updates the page
++
++---
++
++## Glossary (plain English)
++
++### API
++A set of URLs your frontend can call to do things like login, create cars, list cars.
++
++### Endpoint / Route
++A specific API URL + method, e.g.:
++- `POST /api/auth/login`
++- `GET /api/cars`
++
++### HTTP methods (GET/POST/PATCH)
++- **GET**: fetch data (read)
++- **POST**: create something
++- **PATCH**: update part of something
++
++### JSON
++The data format used between frontend and backend. Looks like:
++```json
++{ "registration_number": "AB12CDE", "make": "VW", "model": "ID.3" }
++```
++
++### ORM (Object-Relational Mapper)
++A tool (SQLAlchemy) that lets you work with database rows as Python objects.
++
++### Model (SQLAlchemy model)
++A Python class representing a database table row, e.g. `Car`.
++
++### Schema (Pydantic schema)
++A Python class representing validated input/output data for an endpoint.
++
++### Migration (Alembic migration)
++A scripted change to the database structure (tables/columns/indexes).
++You apply them with:
++```bash
++python -m alembic upgrade head
++```
++
++### JWT (JSON Web Token)
++A signed token string that proves “this user is logged in”.
++Frontend stores it and sends it on each request.
++
++### CORS
++A browser security rule: the backend must allow the frontend’s origin (domain/port).
++In dev: allow `http://localhost:5173`.
++
++### Linting (Ruff)
++Automated style and correctness checks. Helps catch issues early.
++
++### Tests (Pytest)
++Automated checks that verify your code works (e.g., `GET /health` returns ok).
++
++---
++
++## Quick “what do I run?”
++
++### Start everything (manual)
++**Infra**
++```bash
++cd infra
++docker compose up -d
++```
++
++**Backend**
++```bash
++cd backend
++python -m alembic upgrade head
++python -m uvicorn app.main:app --reload --port 8000
++```
++
++**Frontend**
++```bash
++cd frontend
++npm run dev -- --port 5173
++```
++
++### Run checks
++```bash
++cd backend
++python -m ruff check .
++python -m pytest
++```
+diff --git a/README.md b/README.md
+index a0e07af..a1c6821 100644
+--- a/README.md
++++ b/README.md
+@@ -9,7 +9,7 @@ Implements **Phase 1** from the spec:
+ ---
+ 
+ ## Prereqs (Windows 11)
+-- Python **3.13**
++- Python **3.14**
+ - Node **20+**
+ - Docker Desktop (Linux containers)
+ - VS Code
+@@ -29,7 +29,7 @@ docker compose up -d
+ ### Create venv + install
+ ```powershell
+ cd ..\backend
+-py -3.13 -m venv .venv
++py -3.14 -m venv .venv
+ .\.venv\Scripts\Activate.ps1
+ python -m pip install -U pip
+ pip install -e ".[dev]"
+diff --git a/STARTUP.md b/STARTUP.md
+new file mode 100644
+index 0000000..bd2ae99
+--- /dev/null
++++ b/STARTUP.md
+@@ -0,0 +1,38 @@
++0) Open repo root in VS Code
++1) Start infra (Postgres + Redis)
++cd infra
++docker compose up -d
++
++2) Backend: venv + deps + migrations + run API
++cd ..\backend
++.\.venv\Scripts\activate.bat
++pip install -e ".[dev]"
++copy .env.example .env
++python -m alembic upgrade head
++python -m uvicorn app.main:app --reload --port 8000
++
++
++(Leave that terminal running.)
++
++3) Frontend: install deps + run
++
++Open a second terminal:
++
++cd frontend
++npm install
++npm run dev -- --port 5173
++
++4) Run tests
++
++Open a third terminal (or stop uvicorn if you prefer), from backend\:
++
++cd backend
++.\.venv\Scripts\activate.bat
++python -m ruff check .
++python -m pytest
++
++Notes
++
++You only need npm install again if package-lock.json changed or you deleted node_modules.
++
++You only need alembic upgrade head when you pulled new migrations or reset the DB.
+diff --git a/backend/alembic/env.py b/backend/alembic/env.py
+index 9d6997d..32584d2 100644
+--- a/backend/alembic/env.py
++++ b/backend/alembic/env.py
+@@ -2,13 +2,13 @@ from __future__ import annotations
+ 
+ from logging.config import fileConfig
+ 
+-from alembic import context
+ from dotenv import load_dotenv
+ from sqlalchemy import engine_from_config, pool
+ 
++from alembic import context
++from app import models  # noqa: F401
+ from app.config import Settings
+ from app.db import Base
+-from app import models  # noqa: F401
+ 
+ load_dotenv()
+ 
+diff --git a/backend/alembic/versions/0001_init.py b/backend/alembic/versions/0001_init.py
+index 459bc0a..72e9ade 100644
+--- a/backend/alembic/versions/0001_init.py
++++ b/backend/alembic/versions/0001_init.py
+@@ -9,9 +9,10 @@ Create Date: 2026-01-27
+ from __future__ import annotations
+ 
+ import sqlalchemy as sa
+-from alembic import op
+ from sqlalchemy.dialects import postgresql
+ 
++from alembic import op
++
+ revision = "0001_init"
+ down_revision = None
+ branch_labels = None
+diff --git a/backend/app/config.py b/backend/app/config.py
+index 7b4481a..e09fba1 100644
+--- a/backend/app/config.py
++++ b/backend/app/config.py
+@@ -18,7 +18,7 @@ class Settings:
+     cors_origins: list[str]
+ 
+     @staticmethod
+-    def from_env() -> "Settings":
++    def from_env() -> Settings:
+         db = _getenv("DATABASE_URL", "postgresql+psycopg://cartrack:cartrack@localhost:5432/cartrack")
+         jwt_secret = _getenv("JWT_SECRET", "change-me-in-dev")
+         jwt_alg = _getenv("JWT_ALG", "HS256")
+diff --git a/backend/app/deps.py b/backend/app/deps.py
+index 2a00893..6cd32b6 100644
+--- a/backend/app/deps.py
++++ b/backend/app/deps.py
+@@ -40,7 +40,10 @@ def get_current_user(
+             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+         user_id = uuid.UUID(sub)
+     except (JWTError, ValueError):
+-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
++        raise HTTPException(
++            status_code=status.HTTP_401_UNAUTHORIZED,
++            detail="Invalid token",
++    ) from None
+ 
+     user = db.get(User, user_id)
+     if not user:
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 4570efe..5237fbf 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -18,7 +18,7 @@ class User(Base):
+     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+ 
+-    memberships: Mapped[list["HouseholdMember"]] = relationship(back_populates="user", cascade="all, delete-orphan")
++    memberships: Mapped[list[HouseholdMember]] = relationship(back_populates="user", cascade="all, delete-orphan")
+ 
+ 
+ class Household(Base):
+@@ -28,8 +28,8 @@ class Household(Base):
+     name: Mapped[str] = mapped_column(String(120), nullable=False)
+     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+ 
+-    members: Mapped[list["HouseholdMember"]] = relationship(back_populates="household", cascade="all, delete-orphan")
+-    cars: Mapped[list["Car"]] = relationship(back_populates="household", cascade="all, delete-orphan")
++    members: Mapped[list[HouseholdMember]] = relationship(back_populates="household", cascade="all, delete-orphan")
++    cars: Mapped[list[Car]] = relationship(back_populates="household", cascade="all, delete-orphan")
+ 
+ 
+ class HouseholdMember(Base):
+@@ -42,8 +42,8 @@ class HouseholdMember(Base):
+     role: Mapped[str] = mapped_column(String(20), nullable=False, default="admin")  # admin|member
+     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+ 
+-    household: Mapped["Household"] = relationship(back_populates="members")
+-    user: Mapped["User"] = relationship(back_populates="memberships")
++    household: Mapped[Household] = relationship(back_populates="members")
++    user: Mapped[User] = relationship(back_populates="memberships")
+ 
+ 
+ class Car(Base):
+@@ -62,4 +62,4 @@ class Car(Base):
+     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+ 
+-    household: Mapped["Household"] = relationship(back_populates="cars")
++    household: Mapped[Household] = relationship(back_populates="cars")
+diff --git a/backend/app/routers/cars.py b/backend/app/routers/cars.py
+index 806874e..4f68a9a 100644
+--- a/backend/app/routers/cars.py
++++ b/backend/app/routers/cars.py
+@@ -4,6 +4,7 @@ import uuid
+ from datetime import datetime
+ 
+ from fastapi import APIRouter, Depends, HTTPException, status
++from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.orm import Session
+ 
+ from app.deps import get_current_household, get_db
+@@ -54,9 +55,12 @@ def create_car(
+     db.add(car)
+     try:
+         db.commit()
+-    except Exception:
++    except IntegrityError:
+         db.rollback()
+-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Car already exists for household")
++        raise HTTPException(
++            status_code=status.HTTP_409_CONFLICT,
++            detail="Car already exists for household",
++        ) from None
+     db.refresh(car)
+     return _to_out(car)
+ 
+@@ -70,7 +74,7 @@ def get_car(
+     try:
+         cid = uuid.UUID(car_id)
+     except ValueError:
+-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
+ 
+     car = db.get(Car, cid)
+     if not car or car.household_id != household.id:
+@@ -88,7 +92,7 @@ def update_car(
+     try:
+         cid = uuid.UUID(car_id)
+     except ValueError:
+-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
+ 
+     car = db.get(Car, cid)
+     if not car or car.household_id != household.id:
+@@ -119,7 +123,7 @@ def archive_car(
+     try:
+         cid = uuid.UUID(car_id)
+     except ValueError:
+-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
+ 
+     car = db.get(Car, cid)
+     if not car or car.household_id != household.id:
+@@ -140,7 +144,7 @@ def unarchive_car(
+     try:
+         cid = uuid.UUID(car_id)
+     except ValueError:
+-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found") from None
+ 
+     car = db.get(Car, cid)
+     if not car or car.household_id != household.id:
+diff --git a/backend/app/security.py b/backend/app/security.py
+index d982b91..3dd5afd 100644
+--- a/backend/app/security.py
++++ b/backend/app/security.py
+@@ -1,25 +1,25 @@
+ from __future__ import annotations
+ 
+-from datetime import datetime, timedelta, timezone
++from datetime import UTC, datetime, timedelta
+ 
++import bcrypt
+ from jose import jwt
+-from passlib.context import CryptContext
+ 
+ from app.config import Settings
+ 
+-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+-
+ 
+ def hash_password(password: str) -> str:
+-    return pwd_context.hash(password)
++    # Store as a string in the DB (bcrypt returns bytes)
++    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
++    return hashed.decode("utf-8")
+ 
+ 
+ def verify_password(password: str, password_hash: str) -> bool:
+-    return pwd_context.verify(password, password_hash)
++    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+ 
+ 
+ def create_access_token(*, settings: Settings, subject: str, minutes: int) -> str:
+-    now = datetime.now(timezone.utc)
++    now = datetime.now(UTC)
+     exp = now + timedelta(minutes=minutes)
+     payload = {"sub": subject, "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
+     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_alg)
+diff --git a/backend/pyproject.toml b/backend/pyproject.toml
+index f095394..c065748 100644
+--- a/backend/pyproject.toml
++++ b/backend/pyproject.toml
+@@ -16,7 +16,6 @@ dependencies = [
+   "pydantic>=2.7",
+   "python-dotenv>=1.0.1",
+   "python-jose[cryptography]>=3.3.0",
+-  "passlib[bcrypt]>=1.7.4",
+ ]
+ 
+ [project.optional-dependencies]
+@@ -32,7 +31,7 @@ target-version = "py314"
+ 
+ [tool.ruff.lint]
+ select = ["E", "F", "I", "B", "UP"]
+-ignore = ["E501"]
++ignore = ["E501", "B008"]
+ 
+ [tool.pytest.ini_options]
+ testpaths = ["tests"]
+diff --git a/backend/tests/test_health.py b/backend/tests/test_health.py
+index 75c9913..9bfe9e4 100644
+--- a/backend/tests/test_health.py
++++ b/backend/tests/test_health.py
+@@ -1,6 +1,7 @@
+-from app.main import app
+ from fastapi.testclient import TestClient
+ 
++from app.main import app
++
+ client = TestClient(app)
+ 
+ 
+-- 
+2.47.0.windows.1
+
