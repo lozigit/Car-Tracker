@@ -39,11 +39,11 @@ def get_current_user(
         if not sub:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         user_id = uuid.UUID(sub)
-    except (JWTError, ValueError):
+    except (JWTError, ValueError) as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
-    ) from None
+        ) from err
 
     user = db.get(User, user_id)
     if not user:

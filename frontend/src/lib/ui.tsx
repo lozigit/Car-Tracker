@@ -39,3 +39,41 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     />
   );
 }
+
+export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      style={{
+        padding: 8,
+        borderRadius: 10,
+        border: "1px solid #aaa",
+        width: "100%",
+        boxSizing: "border-box",
+        minHeight: 90,
+        fontFamily: "system-ui",
+      }}
+    />
+  );
+}
+
+export function Pill(props: { text: string; tone?: "neutral" | "good" | "warn" | "bad" }) {
+  const tone = props.tone ?? "neutral";
+  const bg =
+    tone === "good" ? "#e7f5e8" : tone === "warn" ? "#fff4dd" : tone === "bad" ? "#ffe4e4" : "#f2f2f2";
+  const border = tone === "neutral" ? "#ddd" : tone === "good" ? "#b5e2b9" : tone === "warn" ? "#f0d59a" : "#f0a7a7";
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 999,
+        border: `1px solid ${border}`,
+        background: bg,
+        fontSize: 12,
+      }}
+    >
+      {props.text}
+    </span>
+  );
+}

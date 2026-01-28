@@ -2,11 +2,12 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Link, Route, Routes, useNavigate } from "react-router-dom";
 import { api, getToken, setToken } from "./lib/api";
-import { Button, Card } from "./lib/ui";
+import { Button, Card, Pill } from "./lib/ui";
 import CarDetail from "./pages/CarDetail";
 import Dashboard from "./pages/Dashboard";
 import Household from "./pages/Household";
 import Login from "./pages/Login";
+import Settings from "./pages/Settings";
 import Signup from "./pages/Signup";
 
 function Layout(props: { children: React.ReactNode }) {
@@ -23,7 +24,13 @@ function Layout(props: { children: React.ReactNode }) {
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <Link to="/" style={{ textDecoration: "none" }}><h1 style={{ margin: 0 }}>CAR TRACK</h1></Link>
-          <span style={{ opacity: 0.7 }}>Phase 1</span>
+          <Pill text="Phase 2" />
+          {authed && (
+            <nav style={{ display: "flex", gap: 12, marginLeft: 12 }}>
+              <Link to="/" style={{ textDecoration: "none" }}>Dashboard</Link>
+              <Link to="/settings" style={{ textDecoration: "none" }}>Settings</Link>
+            </nav>
+          )}
         </div>
         <div>{authed ? <Button onClick={logout}>Logout</Button> : <span />}</div>
       </header>
@@ -71,6 +78,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
           <Route path="/cars/:id" element={<RequireAuth><CarDetail /></RequireAuth>} />
+          <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="*" element={<Card title="Not found">Unknown route</Card>} />
         </Routes>
       </Layout>
