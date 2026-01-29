@@ -3,14 +3,12 @@
 Revision ID: 0002_renewals_and_reminders
 Revises: 0001_init
 Create Date: 2026-01-28
-
 """
 
 from __future__ import annotations
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-
 from alembic import op
 
 revision = "0002_renewals_and_reminders"
@@ -20,8 +18,27 @@ depends_on = None
 
 
 def upgrade() -> None:
-    renewal_kind = sa.Enum("INSURANCE", "MOT", "TAX", name="renewal_kind")
-    renewal_kind.create(op.get_bind(), checkfirst=True)
+    # Create enum type in a fully idempotent way (safe if it already exists)
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE renewal_kind AS ENUM ('INSURANCE', 'MOT', 'TAX');
+        EXCEPTION
+            WHEN duplicate_object THEN
+                NULL;
+        END $$;
+        """
+    )
+
+    # IMPORTANT: use postgresql.ENUM(create_type=False) so SQLAlchemy won't try CREATE TYPE again
+    renewal_kind = postgresql.ENUM(
+        "INSURANCE",
+        "MOT",
+        "TAX",
+        name="renewal_kind",
+        create_type=False,
+    )
 
     op.create_table(
         "renewals",
@@ -68,5 +85,4 @@ def downgrade() -> None:
     op.drop_index("ix_renewals_car_id", table_name="renewals")
     op.drop_table("renewals")
 
-    renewal_kind = sa.Enum("INSURANCE", "MOT", "TAX", name="renewal_kind")
-    renewal_kind.drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS renewal_kind;")
