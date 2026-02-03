@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.enums import RenewalKind
 
@@ -78,6 +78,12 @@ class RenewalCreate(BaseModel):
     reference: str | None = Field(default=None, max_length=120)
     cost_pence: int | None = Field(default=None, ge=0)
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def check_dates(self):
+        if self.valid_to < self.valid_from:
+            raise ValueError("valid_to must be on or after valid_from")
+        return self
 
 
 class RenewalUpdate(BaseModel):

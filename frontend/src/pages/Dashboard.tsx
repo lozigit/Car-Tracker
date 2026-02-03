@@ -68,7 +68,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Card title="Upcoming renewals">
+      <Card title="Renewals Summary">
         {upcoming.length === 0 ? (
           <div style={{ opacity: 0.8 }}>No upcoming items (or you haven&apos;t added any renewals yet).</div>
         ) : (
@@ -86,6 +86,17 @@ export default function Dashboard() {
         <div style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
           Tip: add renewals inside a car record to make this list useful.
         </div>
+      </Card>
+
+      <Card title="Your cars">
+        {cars.length === 0 && <div>No cars yet.</div>}
+        <ul style={{ paddingLeft: 18 }}>
+          {cars.map((c) => (
+            <li key={c.id}>
+              <Link to={`/cars/${c.id}`}>{c.registration_number}</Link> {c.make ? `— ${c.make}` : ""} {c.model ? c.model : ""}
+            </li>
+          ))}
+        </ul>
       </Card>
 
       <Card title="Add a car">

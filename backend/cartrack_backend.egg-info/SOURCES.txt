@@ -20,3 +20,5 @@ cartrack_backend.egg-info/dependency_links.txt
 cartrack_backend.egg-info/requires.txt
 cartrack_backend.egg-info/top_level.txt
 tests/test_health.py
+tests/test_phase2_edge_cases.py
+tests/test_phase2_happy_path.py
