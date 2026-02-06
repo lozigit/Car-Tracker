@@ -1,5 +1,7 @@
 import React from "react";
 
+// This file contains simple reusable UI components used across the app, like cards, buttons, inputs, etc.
+// They are intentionally very basic and unstyled, just to provide some consistent structure and spacing without relying on external libraries or complex CSS.
 export function Card(props: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 16, marginBottom: 16 }}>
