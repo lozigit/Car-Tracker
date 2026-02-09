@@ -223,7 +223,19 @@ export default function CarDetail() {
     <>
       <Card title="Car details">
         <div style={{ marginBottom: 12 }}>
-          <Link to="/">&larr; Back to dashboard</Link>
+          <Link
+            to="/"
+            style={{
+              display: "inline-block",
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              textDecoration: "none",
+              background: "#f7f7f7",
+            }}
+          >
+            &larr; Back to dashboard
+          </Link>
         </div>
         {err && <div style={{ color: "crimson", marginBottom: 12 }}>{err}</div>}
         {!car ? (
