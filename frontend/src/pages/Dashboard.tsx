@@ -16,7 +16,9 @@ function fmtUpcoming(r: UpcomingRenewalOut): { title: string; pill: { text: stri
     const days = r.days_until ?? 0;
     const tone = days <= 7 ? "warn" : "neutral";
     return { title: `Due on ${r.due_date ?? "?"}`, pill: { text: `${days}d`, tone } };
-  };
+  }
+
+  return { title: "Status unavailable", pill: { text: "Unknown", tone: "neutral" } };
 }
 
 export default function Dashboard() {
