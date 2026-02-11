@@ -66,25 +66,6 @@ export default function Dashboard() {
 
   return (
     <>
-      <Card title="Renewals Summary">
-        {upcoming.length === 0 ? (
-          <div style={{ opacity: 0.8 }}>No upcoming items (or you haven&apos;t added any renewals yet).</div>
-        ) : (
-          <ul style={{ paddingLeft: 18, marginTop: 0 }}>
-            {upcoming.slice(0, 12).map((r, idx) => {
-              const u = fmtUpcoming(r);
-              return (
-                <li key={`${r.car_id}-${r.kind}-${idx}`} style={{ marginBottom: 6 }}>
-                  <Link to={`/cars/${r.car_id}`}>{r.car_registration_number}</Link> — {fmtKind(r.kind)}: {u.title} <Pill text={u.pill.text} tone={u.pill.tone} />
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        <div style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
-          Tip: add renewals inside a car record to make this list useful.
-        </div>
-      </Card>
 
       <Card title="Your cars">
         {cars.length === 0 && <div>No cars yet.</div>}
@@ -118,16 +99,28 @@ export default function Dashboard() {
         </form>
       </Card>
 
-      <Card title="Your cars">
-        {cars.length === 0 && <div>No cars yet.</div>}
-        <ul style={{ paddingLeft: 18 }}>
-          {cars.map((c) => (
-            <li key={c.id}>
-              <Link to={`/cars/${c.id}`}>{c.registration_number}</Link> {c.make ? `— ${c.make}` : ""} {c.model ? c.model : ""}
-            </li>
-          ))}
-        </ul>
+      <Card title="Renewals Summary">
+        {upcoming.length === 0 ? (
+          <div style={{ opacity: 0.8 }}>No upcoming items (or you haven&apos;t added any renewals yet).</div>
+        ) : (
+          <ul style={{ paddingLeft: 18, marginTop: 0 }}>
+            {upcoming.slice(0, 12).map((r, idx) => {
+              const u = fmtUpcoming(r);
+              return (
+                <li key={`${r.car_id}-${r.kind}-${idx}`} style={{ marginBottom: 6 }}>
+                  <Link to={`/cars/${r.car_id}`}>{r.car_registration_number}</Link> — {fmtKind(r.kind)}: {u.title} <Pill text={u.pill.text} tone={u.pill.tone} />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
+          Tip: add renewals inside a car record to make this list useful.
+        </div>
       </Card>
+
+
+
     </>
   );
 }

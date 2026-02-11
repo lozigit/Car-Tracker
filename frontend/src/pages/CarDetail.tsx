@@ -69,8 +69,33 @@ function statusForKind(rows: RenewalOut[]) {
   return { text: "Missing", tone: "bad" } as const;
 }
 
+function currentRenewalForKind(rows: RenewalOut[]): RenewalOut | null {
+  const today = new Date();
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  for (const r of rows) {
+    const from = parseDate(r.valid_from);
+    const to = parseDate(r.valid_to);
+    if (!from || !to) continue;
+    if (from <= t && t <= to) return r;
+  }
+  return null;
+}
+
+
 // The main page for a single car, showing its details and renewal records.
 export default function CarDetail() {
+
+  type RenewalMode = "add" | "view" | "edit";
+
+  const [renewalMode, setRenewalMode] = useState<
+    Record<RenewalKind, { mode: RenewalMode; currentId: string | null }>
+  >({
+    INSURANCE: { mode: "add", currentId: null },
+    MOT: { mode: "add", currentId: null },
+    TAX: { mode: "add", currentId: null },
+  });
+
   const { id } = useParams();
   const [car, setCar] = useState<Car | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -137,6 +162,40 @@ export default function CarDetail() {
         TAX: lists[2],
       };
       setRenewals(next);
+      // After loading renewals, hydrate forms with the CURRENT renewal (if any) and lock inputs.
+      setForms((prev) => {
+        const copy = { ...prev };
+        for (const k of kinds) {
+          const cur = currentRenewalForKind(next[k]);
+          if (cur) {
+            copy[k] = {
+              kind: k,
+              valid_from: cur.valid_from,
+              valid_to: cur.valid_to,
+              provider: cur.provider ?? null,
+              reference: cur.reference ?? null,
+              cost_pence: cur.cost_pence ?? null,
+              notes: cur.notes ?? null,
+            };
+          }
+        }
+        return copy;
+      });
+
+      setRenewalMode(() => {
+        const m: Record<RenewalKind, { mode: RenewalMode; currentId: string | null }> = {
+          INSURANCE: { mode: "add", currentId: null },
+          MOT: { mode: "add", currentId: null },
+          TAX: { mode: "add", currentId: null },
+        };
+
+        for (const k of kinds) {
+          const cur = currentRenewalForKind(next[k]);
+          if (cur) m[k] = { mode: "view", currentId: cur.id };
+        }
+        return m;
+      });
+
     } catch (e: any) {
       setErr(e.message ?? "Failed to load car");
     }
@@ -189,16 +248,113 @@ export default function CarDetail() {
     }
   }
 
-  async function addRenewal(kind: RenewalKind) {
+    async function addRenewal(kind: RenewalKind) {
     if (!id) return;
     setBusy(true);
     setErr(null);
     try {
-      await api.createRenewal(id, forms[kind]);
+      const created = await api.createRenewal(id, forms[kind]);
+
+      // Persist + lock immediately based on created record
+      setForms({
+        ...forms,
+        [kind]: {
+          kind,
+          valid_from: created.valid_from,
+          valid_to: created.valid_to,
+          provider: created.provider ?? null,
+          reference: created.reference ?? null,
+          cost_pence: created.cost_pence ?? null,
+          notes: created.notes ?? null,
+        },
+      });
+
+      setRenewalMode({
+        ...renewalMode,
+        [kind]: { mode: "view", currentId: created.id },
+      });
+
+      // Refresh history list
       const rows = await api.listRenewals(id, kind);
       setRenewals({ ...renewals, [kind]: rows });
     } catch (e: any) {
       setErr(e.message ?? "Failed to add renewal");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEdit(kind: RenewalKind) {
+    setRenewalMode({ ...renewalMode, [kind]: { ...renewalMode[kind], mode: "edit" } });
+  }
+
+  async function saveRenewal(kind: RenewalKind) {
+    if (!id) return;
+    const renewalId = renewalMode[kind].currentId;
+    if (!renewalId) return;
+
+    setBusy(true);
+    setErr(null);
+    try {
+      const updated = await api.updateRenewal(renewalId, forms[kind]);
+
+      // Lock again using what server returns
+      setForms({
+        ...forms,
+        [kind]: {
+          kind,
+          valid_from: updated.valid_from,
+          valid_to: updated.valid_to,
+          provider: updated.provider ?? null,
+          reference: updated.reference ?? null,
+          cost_pence: updated.cost_pence ?? null,
+          notes: updated.notes ?? null,
+        },
+      });
+
+      setRenewalMode({
+        ...renewalMode,
+        [kind]: { mode: "view", currentId: updated.id },
+      });
+
+      const rows = await api.listRenewals(id, kind);
+      setRenewals({ ...renewals, [kind]: rows });
+    } catch (e: any) {
+      setErr(e.message ?? "Failed to save renewal");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelEdit(kind: RenewalKind) {
+    if (!id) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      // Rehydrate from API to discard unsaved changes
+      const rows = await api.listRenewals(id, kind);
+      setRenewals({ ...renewals, [kind]: rows });
+
+      const cur = currentRenewalForKind(rows);
+      if (cur) {
+        setForms({
+          ...forms,
+          [kind]: {
+            kind,
+            valid_from: cur.valid_from,
+            valid_to: cur.valid_to,
+            provider: cur.provider ?? null,
+            reference: cur.reference ?? null,
+            cost_pence: cur.cost_pence ?? null,
+            notes: cur.notes ?? null,
+          },
+        });
+        setRenewalMode({ ...renewalMode, [kind]: { mode: "view", currentId: cur.id } });
+      } else {
+        setRenewalMode({ ...renewalMode, [kind]: { mode: "add", currentId: null } });
+      }
+    } catch (e: any) {
+      setErr(e.message ?? "Failed to cancel edit");
     } finally {
       setBusy(false);
     }
@@ -295,13 +451,20 @@ export default function CarDetail() {
         )}
       </Card>
 
+
+
       <Card title="Renewals">
+
         <p style={{ marginTop: 0, opacity: 0.8 }}>
           Add renewal records over time. The app will treat the record whose
           date range includes today as the <b>current</b> one.
         </p>
 
-        {kinds.map((k) => (
+        {kinds.map((k) => {
+        const locked = renewalMode[k].mode === "view";
+
+        return (
+
           <div
             key={k}
             style={{
@@ -333,6 +496,7 @@ export default function CarDetail() {
                 Valid from
                 <Input
                   type="date"
+                  disabled={locked}
                   value={forms[k].valid_from}
                   max={iso(new Date())}
                   onChange={(e) =>
@@ -347,6 +511,7 @@ export default function CarDetail() {
                 Valid to
                 <Input
                   type="date"
+                  disabled={locked}
                   value={forms[k].valid_to}
                   onChange={(e) =>
                     setForms({
@@ -360,6 +525,7 @@ export default function CarDetail() {
                 Provider (optional)
                 <Input
                   value={forms[k].provider ?? ""}
+                  disabled={locked}
                   onChange={(e) =>
                     setForms({
                       ...forms,
@@ -372,6 +538,7 @@ export default function CarDetail() {
                 Reference (optional)
                 <Input
                   value={forms[k].reference ?? ""}
+                  disabled={locked}
                   onChange={(e) =>
                     setForms({
                       ...forms,
@@ -385,6 +552,7 @@ export default function CarDetail() {
                 <Input
                   inputMode="numeric"
                   value={forms[k].cost_pence?.toString() ?? ""}
+                  disabled={locked}
                   onChange={(e) => {
                     const v = e.target.value.trim();
                     setForms({
@@ -397,7 +565,7 @@ export default function CarDetail() {
               <div />
               <label style={{ gridColumn: "1 / -1" }}>
                 Notes (optional)
-                <Textarea
+                <Textarea disabled={locked}
                   value={forms[k].notes ?? ""}
                   onChange={(e) =>
                     setForms({
@@ -416,18 +584,44 @@ export default function CarDetail() {
                   alignItems: "center",
                 }}
               >
-                <Button
-                  disabled={busy}
-                  type="button"
-                  onClick={() => addRenewal(k)}
-                >
-                  {busy ? "Working..." : "Add renewal"}
-                </Button>
-                <span style={{ opacity: 0.7, fontSize: 12 }}>
-                  Tip: for one-year policies, set valid_to 12 months after
-                  valid_from.
+
+                {renewalMode[k].mode === "add" && (
+                  <Button disabled={busy} type="button" onClick={() => addRenewal(k)}>
+                    {busy ? "Working..." : "Add renewal"}
+                  </Button>
+                )}
+
+                {renewalMode[k].mode === "view" && (
+                  <Button disabled={busy} type="button" onClick={() => startEdit(k)}>
+                    {busy ? "Working..." : "Edit renewal"}
+                  </Button>
+                )}
+
+                {renewalMode[k].mode === "edit" && (
+                  <>
+                    <Button disabled={busy} type="button" onClick={() => saveRenewal(k)}>
+                      {busy ? "Working..." : "Save renewal"}
+                    </Button>
+                    <Button disabled={busy} type="button" onClick={() => cancelEdit(k)}>
+                      Cancel
+                    </Button>
+                  </>
+                )}
+
+                {renewalMode[k].mode === "view" && (
+                  <span style={{ opacity: 0.7, fontSize: 12 }}>
+                  Current renewal locked — click Edit to change
                 </span>
+                )}
+
+                {renewalMode[k].mode === "add" && (
+                  <span style={{ opacity: 0.7, fontSize: 12 }}>
+                  No valid renewal for this kind — fill in the form and click "Add renewal" 
+                </span>
+                )}
+
               </div>
+
             </div>
 
             {renewals[k].length === 0 ? (
@@ -457,7 +651,8 @@ export default function CarDetail() {
               </div>
             )}
           </div>
-        ))}
+
+        );      })}
       </Card>
     </>
   );
