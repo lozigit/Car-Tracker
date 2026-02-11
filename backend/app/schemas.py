@@ -83,6 +83,8 @@ class RenewalCreate(BaseModel):
     def check_dates(self):
         if self.valid_to < self.valid_from:
             raise ValueError("valid_to must be on or after valid_from")
+        if self.valid_from > date.today():
+            raise ValueError("valid_from cannot be in the future")
         return self
 
 
@@ -94,6 +96,14 @@ class RenewalUpdate(BaseModel):
     reference: str | None = Field(default=None, max_length=120)
     cost_pence: int | None = Field(default=None, ge=0)
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def check_dates(self):
+        if self.valid_from is not None and self.valid_from > date.today():
+            raise ValueError("valid_from cannot be in the future")
+        if self.valid_from is not None and self.valid_to is not None and self.valid_to < self.valid_from:
+            raise ValueError("valid_to must be on or after valid_from")
+        return self
 
 
 class RenewalOut(BaseModel):
@@ -113,7 +123,7 @@ class RenewalOut(BaseModel):
     updated_at: datetime
 
 
-UpcomingStatus = Literal["missing", "due", "overdue", "next_scheduled"]
+UpcomingStatus = Literal["missing", "due", "overdue"]
 
 
 class UpcomingRenewalOut(BaseModel):
@@ -126,8 +136,6 @@ class UpcomingRenewalOut(BaseModel):
     days_until: int | None = None
 
     current_valid_to: date | None = None
-    next_valid_from: date | None = None
-    next_valid_to: date | None = None
 
 
 # -------------------------

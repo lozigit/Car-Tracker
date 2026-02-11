@@ -1,11 +1,10 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": [
-    "backend/tests"
-  ],
+  "python.testing.pytestArgs": ["backend/tests"],
   "editor.formatOnSave": true,
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
+  "workbench.editor.enablePreview": false
 }

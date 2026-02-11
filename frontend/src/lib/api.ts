@@ -47,12 +47,10 @@ export type UpcomingRenewalOut = {
   car_id: string;
   car_registration_number: string;
   kind: RenewalKind;
-  status: "missing" | "due" | "overdue" | "next_scheduled";
+  status: "missing" | "due" | "overdue";
   due_date?: string | null;
   days_until?: number | null;
   current_valid_to?: string | null;
-  next_valid_from?: string | null;
-  next_valid_to?: string | null;
 };
 
 export type ReminderPreferences = {

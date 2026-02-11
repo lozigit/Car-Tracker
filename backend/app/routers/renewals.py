@@ -192,11 +192,6 @@ def upcoming_renewals(
                 key=lambda r: r.valid_to,
                 default=None,
             )
-            future = min(
-                (r for r in rs if r.valid_from > today),
-                key=lambda r: r.valid_from,
-                default=None,
-            )
             past = max(
                 (r for r in rs if r.valid_to < today),
                 key=lambda r: r.valid_to,
@@ -215,8 +210,6 @@ def upcoming_renewals(
                             due_date=current.valid_to,
                             days_until=days_until,
                             current_valid_to=current.valid_to,
-                            next_valid_from=future.valid_from if future else None,
-                            next_valid_to=future.valid_to if future else None,
                         )
                     )
                 continue
@@ -232,28 +225,8 @@ def upcoming_renewals(
                         due_date=past.valid_to,
                         days_until=-(today - past.valid_to).days,
                         current_valid_to=None,
-                        next_valid_from=future.valid_from if future else None,
-                        next_valid_to=future.valid_to if future else None,
                     )
                 )
-                continue
-
-            if future:
-                days_until = (future.valid_from - today).days
-                if days_until <= days:
-                    out.append(
-                        UpcomingRenewalOut(
-                            car_id=car.id,
-                            car_registration_number=car.registration_number,
-                            kind=kind,
-                            status="next_scheduled",
-                            due_date=None,
-                            days_until=days_until,
-                            current_valid_to=None,
-                            next_valid_from=future.valid_from,
-                            next_valid_to=future.valid_to,
-                        )
-                    )
                 continue
 
             # no records at all
@@ -267,6 +240,6 @@ def upcoming_renewals(
             )
 
     # Sort: missing first, then overdue, then due soon, then next scheduled
-    priority = {"missing": 0, "overdue": 1, "due": 2, "next_scheduled": 3}
+    priority = {"missing": 0, "overdue": 1, "due": 2}
     out.sort(key=lambda x: (priority.get(x.status, 99), x.days_until if x.days_until is not None else 10_000))
     return out

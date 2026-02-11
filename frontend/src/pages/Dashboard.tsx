@@ -16,9 +16,7 @@ function fmtUpcoming(r: UpcomingRenewalOut): { title: string; pill: { text: stri
     const days = r.days_until ?? 0;
     const tone = days <= 7 ? "warn" : "neutral";
     return { title: `Due on ${r.due_date ?? "?"}`, pill: { text: `${days}d`, tone } };
-  }
-  // next_scheduled
-  return { title: `Next starts ${r.next_valid_from ?? "?"}`, pill: { text: `${r.days_until ?? 0}d`, tone: "neutral" } };
+  };
 }
 
 export default function Dashboard() {

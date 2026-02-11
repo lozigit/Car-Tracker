@@ -2,6 +2,8 @@ import uuid
 from datetime import date, timedelta
 
 
+# Helper functions to create users, households, cars, and auth headers for testing.
+#  Test for signup and login, then use the token for authenticated requests in the tests below.
 def _signup_and_login(client) -> tuple[str, str]:
     email = f"user_{uuid.uuid4().hex[:10]}@example.com"
     password = "string1234"
@@ -14,10 +16,11 @@ def _signup_and_login(client) -> tuple[str, str]:
     return token, email
 
 
+#  Use the token to create households and cars, which are needed for the renewal tests.
 def _auth(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
-
+# Test for creating a household   and a car, which are prerequisites for testing renewals. These functions will be used in the tests below.
 def _create_household(client, token: str) -> str:
     r = client.post("/api/households", headers=_auth(token), json={"name": f"H-{uuid.uuid4().hex[:6]}"})
     assert r.status_code in (200, 201), r.text
@@ -34,12 +37,15 @@ def _create_car(client, token: str) -> str:
     return r.json()["id"]
 
 
-def test_renewal_rejects_invalid_date_range(client):
+# Test for invalid date range when creating a renewal. The API should reject a renewal where the valid_to date is before the valid_from date.
+# Depending on your implementation, this could be a 422 from Pydantic validation or a 400
+def test_renewal_traps_valid_to_before_valid_from(client):
     token, _ = _signup_and_login(client)
     _create_household(client, token)
     car_id = _create_car(client, token)
 
     today = date.today()
+    print(f"Testing invalid date range: valid_from={today + timedelta(days=10)}, valid_to={today + timedelta(days=1)}")
     payload = {
         "kind": "MOT",
         "valid_from": (today + timedelta(days=10)).isoformat(),
@@ -49,6 +55,7 @@ def test_renewal_rejects_invalid_date_range(client):
 
     # Could be 422 from Pydantic validation or 400 from your own validation
     assert r.status_code in (400, 422), r.text
+    print(f"Received expected error response: {r.status_code} - {r.text}")
 
 
 def test_delete_renewal_soft_deletes_and_disappears_from_list(client):

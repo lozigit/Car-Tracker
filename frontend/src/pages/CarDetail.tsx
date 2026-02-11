@@ -334,6 +334,7 @@ export default function CarDetail() {
                 <Input
                   type="date"
                   value={forms[k].valid_from}
+                  max={iso(new Date())}
                   onChange={(e) =>
                     setForms({
                       ...forms,
