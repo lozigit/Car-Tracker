@@ -9,6 +9,8 @@ import Household from "./pages/Household";
 import Login from "./pages/Login";
 import Settings from "./pages/Settings";
 import Signup from "./pages/Signup";
+import "./theme.css";
+
 
 function Layout(props: { children: React.ReactNode }) {
   const nav = useNavigate();
@@ -20,15 +22,33 @@ function Layout(props: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", padding: 18, maxWidth: 980, margin: "0 auto" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+    <div
+      style={{
+        fontFamily: "Avenir Next, Segoe UI, Roboto, system-ui, sans-serif",
+        padding: 18,
+        maxWidth: 1040,
+        margin: "0 auto",
+        minHeight: "100vh",
+        color: "#f3f4f6",
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+          borderBottom: "1px solid #2f3943",
+          paddingBottom: 14,
+        }}
+      >
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <Link to="/" style={{ textDecoration: "none" }}><h1 style={{ margin: 0 }}>CAR TRACK</h1></Link>
+          <Link to="/" style={{ textDecoration: "none", color: "#f5f7fb" }}><h1 style={{ margin: 0, letterSpacing: "0.24em", fontWeight: 500, fontSize: "1.55rem" }}>CAR TRACK</h1></Link>
           <Pill text="Phase 2" />
           {authed && (
             <nav style={{ display: "flex", gap: 12, marginLeft: 12 }}>
-              <Link to="/" style={{ textDecoration: "none" }}>Dashboard</Link>
-              <Link to="/settings" style={{ textDecoration: "none" }}>Settings</Link>
+              <Link to="/" style={{ textDecoration: "none", color: "#d7dee8" }}>Dashboard</Link>
+              <Link to="/settings" style={{ textDecoration: "none", color: "#d7dee8" }}>Settings</Link>
             </nav>
           )}
         </div>
