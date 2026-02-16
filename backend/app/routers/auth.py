@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -10,7 +12,6 @@ from app.schemas import LoginRequest, SignupRequest, TokenResponse, UserOut
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
 
 @router.post("/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
@@ -36,4 +37,22 @@ def login(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(settings=settings, subject=str(user.id), minutes=settings.access_token_expire_minutes)
+    return TokenResponse(access_token=token)
+
+@router.post("/token", response_model=TokenResponse)
+def token(
+    form: OAuth2PasswordRequestForm = Depends(),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    # Swagger sends "username" but you’re using email as the username
+    user = db.query(User).filter(User.email == form.username.lower()).first()
+    if not user or not verify_password(form.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    token = create_access_token(
+        settings=settings,
+        subject=str(user.id),
+        minutes=settings.access_token_expire_minutes,
+    )
     return TokenResponse(access_token=token)

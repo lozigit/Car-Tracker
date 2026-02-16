@@ -11,7 +11,8 @@ from app.config import Settings
 from app.db import make_engine, make_session_factory
 from app.models import Household, HouseholdMember, User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 
 def get_settings() -> Settings:

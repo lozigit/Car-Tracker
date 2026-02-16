@@ -17,6 +17,7 @@ function fmtUpcoming(r: UpcomingRenewalOut): { title: string; pill: { text: stri
     const tone = days <= 7 ? "warn" : "neutral";
     return { title: `Due on ${r.due_date ?? "?"}`, pill: { text: `${days}d`, tone } };
   };
+  return { title: `No data`, pill: { text: "Undefined", tone: "neutral" } };
 }
 
 export default function Dashboard() {
@@ -28,6 +29,8 @@ export default function Dashboard() {
   const [vrm, setVrm] = useState("");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
+
+  const [addCarOpen, setAddCarOpen] = useState(false);
 
   async function refresh() {
     setErr(null);
@@ -67,6 +70,8 @@ export default function Dashboard() {
   return (
     <>
 
+
+
       <Card title="Your cars">
         {cars.length === 0 && <div>No cars yet.</div>}
         <ul style={{ paddingLeft: 18 }}>
@@ -79,27 +84,51 @@ export default function Dashboard() {
       </Card>
 
       <Card title="Add a car">
-        <form onSubmit={addCar} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
-          <label>
-            Registration number (VRM)
-            <Input value={vrm} onChange={(e) => setVrm(e.target.value)} required />
-          </label>
-          <label>
-            Make
-            <Input value={make} onChange={(e) => setMake(e.target.value)} />
-          </label>
-          <label>
-            Model
-            <Input value={model} onChange={(e) => setModel(e.target.value)} />
-          </label>
-          {err && <div style={{ color: "crimson" }}>{err}</div>}
-          <Button disabled={busy} type="submit">
-            {busy ? "Adding..." : "Add car"}
-          </Button>
-        </form>
-      </Card>
+      {!addCarOpen ? (
+        <Button type="button" onClick={() => setAddCarOpen(true)}>
+          Add a car
+        </Button>
+      ) : (
+    <form onSubmit={addCar} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
+      <label>
+        Registration number (VRM)
+        <Input value={vrm} onChange={(e) => setVrm(e.target.value)} required />
+      </label>
+      <label>
+        Make
+        <Input value={make} onChange={(e) => setMake(e.target.value)} />
+      </label>
+      <label>
+        Model
+        <Input value={model} onChange={(e) => setModel(e.target.value)} />
+      </label>
 
-      <Card title="Renewals Summary">
+      {err && <div style={{ color: "crimson" }}>{err}</div>}
+
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <Button disabled={busy} type="submit">
+          {busy ? "Adding..." : "Add car"}
+        </Button>
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setAddCarOpen(false);
+            setErr(null);
+            setVrm("");
+            setMake("");
+            setModel("");
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  )}
+</Card>
+
+
+      <Card title="Renewals Status">
         {upcoming.length === 0 ? (
           <div style={{ opacity: 0.8 }}>No upcoming items (or you haven&apos;t added any renewals yet).</div>
         ) : (

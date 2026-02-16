@@ -27,6 +27,9 @@ def _to_out(c: Car) -> CarOut:
     )
 
 
+# Use of Depends here (it is part of fastapi). The get_current_household dependency will ensure that the user is authenticated and belongs to a household,
+# and will provide the household object to the route handlers. This allows us to easily scope all car operations to the current household
+# without having to manually check the user's permissions in each handler.
 @router.get("", response_model=list[CarOut])
 def list_cars(
     include_archived: bool = False,

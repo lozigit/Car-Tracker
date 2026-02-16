@@ -616,7 +616,7 @@ export default function CarDetail() {
 
                 {renewalMode[k].mode === "add" && (
                   <span style={{ opacity: 0.7, fontSize: 12 }}>
-                  No valid renewal for this kind — fill in the form and click "Add renewal" 
+                  No valid renewal for this kind — fill in the form and click "Add renewal"
                 </span>
                 )}
 
